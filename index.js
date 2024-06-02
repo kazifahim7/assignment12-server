@@ -31,6 +31,8 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         // await client.connect();
 
+        const userCollection = client.db("ContestHub").collection('AllUser')
+
 
 
         // token implement....
@@ -58,6 +60,61 @@ async function run() {
 
 
         }
+
+
+        // add all user in dataBase-----------
+
+        app.post('/users',async(req,res)=>{
+            const users=req.body;
+            const query={
+                email: users.email,
+            }
+            const existing=await userCollection.findOne(query)
+            if(existing){
+                return res.send({massage: 'already available'})
+            }
+            const result=await userCollection.insertOne(users)
+            res.send(result)
+        })
+
+        // all users
+
+        app.get('/users',async(req,res)=>{
+            const result=await userCollection.find().toArray()
+            res.send(result)
+        })
+
+        //  find role :--
+
+        app.get('/users/:email',async(req,res)=>{
+            const email=req.params.email;
+            const query={email:email}
+            const result=await userCollection.findOne(query)
+            let position=''
+            
+            if(result){
+                position=result?.role
+
+            }
+            
+            res.send({position})
+
+        })
+
+        // find verified:
+        app.get('/users/verified/:email',async(req,res)=>{
+            const email = req.params.email;
+            const query = { email: email }
+            const result = await userCollection.findOne(query)
+            let permission = ''
+            if (result) {
+                permission = result?.status
+
+            }
+
+            res.send({ permission })
+        })
+
 
 
 
