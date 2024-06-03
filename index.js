@@ -2,7 +2,7 @@ const express = require('express')
 const app = express()
 const cors = require('cors')
 require('dotenv').config()
-const port =process.env.PORT || 7000
+const port = process.env.PORT || 7000
 
 var jwt = require('jsonwebtoken')
 
@@ -12,7 +12,7 @@ app.use(express.json())
 
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.afhro9w.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 console.log(uri)
@@ -32,23 +32,24 @@ async function run() {
         // await client.connect();
 
         const userCollection = client.db("ContestHub").collection('AllUser')
+        const creatorCollection = client.db("ContestHub").collection('creatorContest')
 
 
 
         // token implement....
 
-        app.post('/jwt',async(req,res)=>{
-            const email= req.body;
-            const token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET,{expiresIn:'7d'})
-           res.send({token})
+        app.post('/jwt', async (req, res) => {
+            const email = req.body;
+            const token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '7d' })
+            res.send({ token })
         })
         // verify token
 
-        const verifyToken=(req,res,next)=>{
-            if(!req.headers.authorization){
-                return res.status(401).send({massage:'unAuthorized'})
+        const verifyToken = (req, res, next) => {
+            if (!req.headers.authorization) {
+                return res.status(401).send({ massage: 'unAuthorized' })
             }
-            const token=req.headers.authorization.split(' ')[1]
+            const token = req.headers.authorization.split(' ')[1]
             jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
                 if (err) {
                     console.log(err)
@@ -79,45 +80,45 @@ async function run() {
 
         // add all user in dataBase-----------
 
-        app.post('/users',async(req,res)=>{
-            const users=req.body;
-            const query={
+        app.post('/users', async (req, res) => {
+            const users = req.body;
+            const query = {
                 email: users.email,
             }
-            const existing=await userCollection.findOne(query)
-            if(existing){
-                return res.send({massage: 'already available'})
+            const existing = await userCollection.findOne(query)
+            if (existing) {
+                return res.send({ massage: 'already available' })
             }
-            const result=await userCollection.insertOne(users)
+            const result = await userCollection.insertOne(users)
             res.send(result)
         })
 
         // all users
 
-        app.get('/users',async(req,res)=>{
-            const result=await userCollection.find().toArray()
+        app.get('/users', async (req, res) => {
+            const result = await userCollection.find().toArray()
             res.send(result)
         })
 
         //  find role :--
 
-        app.get('/users/:email',async(req,res)=>{
-            const email=req.params.email;
-            const query={email:email}
-            const result=await userCollection.findOne(query)
-            let position=''
-            
-            if(result){
-                position=result?.role
+        app.get('/users/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email }
+            const result = await userCollection.findOne(query)
+            let position = ''
+
+            if (result) {
+                position = result?.role
 
             }
-            
-            res.send({position})
+
+            res.send({ position })
 
         })
 
         // find verified:
-        app.get('/users/verified/:email',async(req,res)=>{
+        app.get('/users/verified/:email', async (req, res) => {
             const email = req.params.email;
             const query = { email: email }
             const result = await userCollection.findOne(query)
@@ -128,6 +129,102 @@ async function run() {
             }
 
             res.send({ permission })
+        })
+
+
+        // get single user by id
+
+        app.get('/user/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await userCollection.findOne(query)
+            res.send(result)
+        })
+
+        // update role
+
+        app.put('/update/user/role/:id', verifyToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const info = req.body;
+            const updateDoc = {
+                $set: {
+                    role: info?.newRole,
+                }
+            }
+
+            const result = await userCollection.updateOne(query, updateDoc)
+            res.send(result)
+
+        })
+
+        app.put('/block/user/:id', verifyToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const info = req.body;
+            const updateDoc = {
+                $set: {
+                    status: info?.newStatus,
+                }
+            }
+
+            const result = await userCollection.updateOne(query, updateDoc)
+            res.send(result)
+
+        })
+
+        app.delete('/delete/users/:id', verifyToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await userCollection.deleteOne(query)
+            res.send(result)
+        })
+
+
+        // contest creator....
+
+        app.post('/host/contest', async (req, res) => {
+            const info = req.body;
+            const result = await creatorCollection.insertOne(info)
+            res.send(result)
+        })
+
+
+        app.get('/host/contest/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { hostEmail: email }
+            const result = await creatorCollection.find(query).toArray()
+            res.send(result)
+        })
+
+        app.get('/single/contest/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await creatorCollection.findOne(query)
+            res.send(result)
+        })
+
+        app.put('/updateSingleData/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const info = req.body;
+            console.log(info)
+            const updateDoc = {
+                $set: {
+                    contestName: info?.contestName,
+                    contestType: info?.contestType,
+                    description: info?.description,
+                    price: info?.price,
+                    prize: info?.prize,
+                    task: info?.task,
+                    image: info?.image,
+                    dates: info?.dates
+                }
+            }
+
+            const result = await creatorCollection.updateOne(query, updateDoc)
+            res.send(result)
+
         })
 
 
