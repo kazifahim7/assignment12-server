@@ -33,6 +33,7 @@ async function run() {
 
         const userCollection = client.db("ContestHub").collection('AllUser')
         const creatorCollection = client.db("ContestHub").collection('creatorContest')
+        const allContestCollection = client.db("ContestHub").collection('allContest')
 
 
 
@@ -225,6 +226,90 @@ async function run() {
             const result = await creatorCollection.updateOne(query, updateDoc)
             res.send(result)
 
+        })
+
+
+        app.delete('/delete/creator/collection/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await creatorCollection.deleteOne(query)
+            res.send(result)
+        })
+
+        app.get('/allContes/for/Admin', async (req, res) => {
+            const result = await creatorCollection.find().toArray()
+            res.send(result)
+        })
+
+        // one path two work...
+        app.post('/add/allContest', async (req, res) => {
+            const info = req.body;
+            const currentINfo = {
+
+                contestName: info?.contestName,
+                contestType: info?.contestType,
+                description: info?.description,
+                price: info?.price,
+                prize: info?.prize,
+                task: info?.task,
+                image: info?.image,
+                dates: info?.dates,
+                hostEmail: info?.hostEmail,
+                participated: info?.participated,
+                hostImage: info?.hostImage,
+                hostName: info?.hostName
+
+
+
+
+
+            }
+            const id = info?._id
+            console.log(info, id)
+            const query = { _id: new ObjectId(id) }
+            const updateDoc = {
+                $set: {
+                    status: 'accepted',
+                }
+            }
+            const update = await creatorCollection.updateOne(query, updateDoc)
+
+            const result = await allContestCollection.insertOne(currentINfo)
+            res.send(result)
+
+        })
+
+        app.put('/sendMassage/:id', async (req, res) => {
+            const id = req.params.id;
+            const info = req.body
+            const query = { _id: new ObjectId(id) }
+            const updateDoc = {
+                $set: {
+                    comments: info?.comments,
+                }
+            }
+            const result = await creatorCollection.updateOne(query, updateDoc)
+            res.send(result)
+
+        })
+
+
+        app.get('/allData/everyone', async (req, res) => {
+            const search = req.query?.search
+            const sort = req.query?.sort
+            console.log(search)
+            let query = {
+                contestType: { $regex: search, $options: 'i' },
+
+            }
+            let option = {}
+
+            if (sort) option = { sort: { participated: sort === 'asc' ? -1 : 1 } }
+
+
+
+            const result = await allContestCollection.find(query, option).toArray()
+            res.send(result)
         })
 
 
