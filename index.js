@@ -5,6 +5,7 @@ require('dotenv').config()
 const port = process.env.PORT || 7000
 
 var jwt = require('jsonwebtoken')
+const stripe = require('stripe')(process.env.STRIPE_KEY)
 
 app.use(cors())
 
@@ -33,7 +34,8 @@ async function run() {
 
         const userCollection = client.db("ContestHub").collection('AllUser')
         const creatorCollection = client.db("ContestHub").collection('creatorContest')
-        const allContestCollection = client.db("ContestHub").collection('allContest')
+        const registerContest = client.db("ContestHub").collection('register')
+        const paymentsCollection = client.db("ContestHub").collection('payments')
 
 
 
@@ -236,7 +238,7 @@ async function run() {
             res.send(result)
         })
 
-        app.get('/allContes/for/Admin', async (req, res) => {
+        app.get('/allContes/for/Admin',verifyToken,verifyAdmin, async (req, res) => {
             const result = await creatorCollection.find().toArray()
             res.send(result)
         })
@@ -244,26 +246,7 @@ async function run() {
         // one path two work...
         app.post('/add/allContest', async (req, res) => {
             const info = req.body;
-            const currentINfo = {
-
-                contestName: info?.contestName,
-                contestType: info?.contestType,
-                description: info?.description,
-                price: info?.price,
-                prize: info?.prize,
-                task: info?.task,
-                image: info?.image,
-                dates: info?.dates,
-                hostEmail: info?.hostEmail,
-                participated: info?.participated,
-                hostImage: info?.hostImage,
-                hostName: info?.hostName
-
-
-
-
-
-            }
+           
             const id = info?._id
             console.log(info, id)
             const query = { _id: new ObjectId(id) }
@@ -274,18 +257,19 @@ async function run() {
             }
             const update = await creatorCollection.updateOne(query, updateDoc)
 
-            const result = await allContestCollection.insertOne(currentINfo)
-            res.send(result)
+            
+            res.send(update)
 
         })
 
         app.put('/sendMassage/:id', async (req, res) => {
             const id = req.params.id;
             const info = req.body
+            console.log(info,id)
             const query = { _id: new ObjectId(id) }
             const updateDoc = {
                 $set: {
-                    comments: info?.comments,
+                    comments: info?.comment,
                 }
             }
             const result = await creatorCollection.updateOne(query, updateDoc)
@@ -302,15 +286,108 @@ async function run() {
                 contestType: { $regex: search, $options: 'i' },
 
             }
+            if(search==undefined){
+                return res.send('no data')
+            }
             let option = {}
 
             if (sort) option = { sort: { participated: sort === 'asc' ? -1 : 1 } }
 
 
 
-            const result = await allContestCollection.find(query, option).toArray()
+            const result = await creatorCollection.find(query, option).toArray()
             res.send(result)
         })
+
+        app.get(`/singleData/details/:id`,async(req,res)=>{
+            const id=req.params.id;
+            const query={_id:new ObjectId(id)}
+            const result=await creatorCollection.findOne(query)
+            res.send(result)
+        })
+
+
+        app.get('/allData-for/home/page',async(req,res)=>{
+            const sort = req.query?.sort
+
+            const query={}
+
+            let option = {}
+
+            if (sort) option = { sort: { participated: sort === 'asc' ? -1 : 1 } }
+            const result=await creatorCollection.find(query,option).toArray()
+            res.send(result)
+        })
+
+
+        app.post('/register/contest',async(req,res)=>{
+            const contest=req.body;
+            const result=await registerContest.insertOne(contest)
+            res.send(result)
+        })
+
+
+        app.get('/getRegisterContest/:email',async(req,res)=>{
+            const email=req.params.email 
+            const query={
+                userEmail:email
+            }
+
+            const result=await registerContest.find(query).toArray()
+            res.send(result)
+            
+        })
+        app.get('/getSingleContest/:id',async(req,res)=>{
+            const id=req.params.id;
+            const query={_id: new ObjectId(id)}
+            const result= await registerContest.findOne(query)
+            res.send(result)
+        })
+
+
+        // payment 
+        app.post('/create-payment-intent', async (req, res) => {
+            const { price } = req.body;
+
+            const amount = parseInt(price * 100)
+            const paymentIntent = await stripe.paymentIntents.create({
+
+                amount: amount,
+                currency: "usd",
+                payment_method_types: ["card"]
+
+
+
+
+
+            })
+
+            res.send({ clientSecret: paymentIntent.client_secret })
+
+        })
+
+
+        app.post('/payments',async(req,res)=>{
+            const info=req.body;
+            const id = info?.ContestId
+            const firstId = info.registerId
+            const query = { _id: new ObjectId(id) }
+            let updateDoc = {   $inc: { participated: 1 }  }
+            const update = await creatorCollection.updateOne(query, updateDoc)
+           
+            
+            console.log(id)
+           
+            
+            
+            const result= await paymentsCollection.insertOne(info)
+            
+           
+            const filter = { _id: new ObjectId(firstId) }
+            const now = await registerContest.deleteOne(filter)
+            res.send(result);
+        })
+
 
 
 
