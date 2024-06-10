@@ -36,6 +36,8 @@ async function run() {
         const creatorCollection = client.db("ContestHub").collection('creatorContest')
         const registerContest = client.db("ContestHub").collection('register')
         const paymentsCollection = client.db("ContestHub").collection('payments')
+        const winCollection = client.db("ContestHub").collection('win')
+
 
 
 
@@ -322,6 +324,7 @@ async function run() {
 
         app.post('/register/contest',async(req,res)=>{
             const contest=req.body;
+            console.log(contest)
             const result=await registerContest.insertOne(contest)
             res.send(result)
         })
@@ -389,9 +392,124 @@ async function run() {
         })
 
 
+        app.get('/myParticipateData/:email',async(req,res)=>{
+            const email=req.params.email;
+            const sort =req.query.sort
+            console.log(sort)
+            let option={}
+            if (sort) {
+                option = { sort: { ContestDate: sort === 'asc' ? 1 : -1 } }
+            }
+            const query = { participateUserEmail : email}
+            const result=await paymentsCollection.find(query,option).toArray()
+            res.send(result)
+        })
+
+
+        app.get('/user/myProfile/:email',async(req,res)=>{
+            const email=req.params.email
+            const query={email:email}
+            const result=await userCollection.findOne(query)
+            res.send(result);
+        })
+
+
+        app.patch('/update/profile/:email',async(req,res)=>{
+            const info=req.body;
+            const email=req.params.email;
+            const query={email:email}
+            const updateDoc = {
+                $set: {
+                    name:info.name,
+                    image:info.image,
+                    location:info.location,
+                }
+            }
+            const options = { upsert: true };
+            const result=await userCollection.updateOne(query,updateDoc,options)
+            res.send(result)
+
+        })
+
+
+        app.get('/host/contest/title/:email', async (req, res) => {
+            const email = req.params.email;
+            const contest = req.query.contest
+            console.log(contest)
+            const query = {
+                 hostEmail: email,
+                contestName:contest
+                
+                }
+            const result = await paymentsCollection.find(query).toArray()
+            res.send(result)
+        })
+
+
+        app.post('/setResult',async(req,res)=>{
+            const info=req.body;
+            let id1 = info?.submissionId
+            const query1={_id:new ObjectId(id1)}
+            const updateDoc1 = {
+                $set: {
+                    status:'winner'
+                }
+            }
+            const result1=await paymentsCollection.updateOne(query1,updateDoc1)
+
+
+            const query2 = {
+                _id: {
+                    $in: info.othersId.map(id => new ObjectId(id))
+                }
+            }
+
+            const updateDoc2 = {
+                $set: {
+                    status: 'Unsuccess'
+                }
+            }
+            const result2 = await paymentsCollection.updateMany(query2, updateDoc2)
+
+            const query3 = { _id: new ObjectId(info?.ContestId)}
+            const options = { upsert: true };
+
+            const updateDoc3 = {
+                $set: {
+                    participateUserEmail: info?.participateUserEmail,
+                    participateUserName: info?.participateUserName,
+                    participateUserPhoto: info?.participateUserPhoto
+                }
+            }
+            const result4= await creatorCollection.updateOne(query3,updateDoc3,options)
 
 
 
+
+
+
+
+            const result=await winCollection.insertOne(info)
+            res.send(result)
+        })
+
+
+        app.get('/total/winner',async(req,res)=>{
+            const result= await winCollection.find().toArray()
+            res.send(result)
+        })
+
+
+        app.get('/my-wining/status/:email',async(req,res)=>{
+            const email=req.params.email;
+            const filter = { participateUserEmail : email}
+            const result=await winCollection.find(filter).toArray()
+            res.send(result)
+        })
+
+
+
+        
 
 
 
