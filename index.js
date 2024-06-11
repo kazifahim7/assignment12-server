@@ -467,9 +467,7 @@ async function run() {
                     status:'winner'
                 }
             }
-            const result1=await paymentsCollection.updateOne(query1,updateDoc1)
-
-
+            const result1=await paymentsCollection.updateOne(query1,updateDoc1);
             const query2 = {
                 _id: {
                     $in: info.othersId.map(id => new ObjectId(id))
