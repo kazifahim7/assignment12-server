@@ -37,6 +37,7 @@ async function run() {
         const registerContest = client.db("ContestHub").collection('register')
         const paymentsCollection = client.db("ContestHub").collection('payments')
         const winCollection = client.db("ContestHub").collection('win')
+        const upcomingCollection = client.db("ContestHub").collection('upcoming')
 
 
 
@@ -504,6 +505,45 @@ async function run() {
             const email=req.params.email;
             const filter = { participateUserEmail : email}
             const result=await winCollection.find(filter).toArray()
+            res.send(result)
+        })
+
+
+        app.get('/upcoming',async(req,res)=>{
+            const result=await upcomingCollection.find().toArray()
+            res.send(result)
+        })
+
+
+
+        app.get('/leaderBoard',async(req,res)=>{
+            const result=await winCollection.aggregate([
+                {
+                    $match: { status: 'win' } 
+                },
+                {
+                    $group: {
+                        _id: '$participateUserEmail', 
+                        winCount: { $sum: 1 } ,
+                        winerName: { $first: '$participateUserName' },
+                        winerPhoto: { $first: '$participateUserPhoto' },
+                    }
+                },
+                {
+                    $sort: { winCount: -1 } 
+                },
+                {
+                    $project: {
+                        _id: 0, 
+                        participateUserEmail: '$_id', 
+                        winCount: 1,  
+                        winerName: 1 ,
+                        winerPhoto: 1
+                    }
+                }
+
+            ]).toArray()
+
             res.send(result)
         })
 
