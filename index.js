@@ -494,11 +494,6 @@ async function run() {
             const result4= await creatorCollection.updateOne(query3,updateDoc3,options)
 
 
-
-
-
-
-
             const result=await winCollection.insertOne(info)
             res.send(result)
         })
