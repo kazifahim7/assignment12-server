@@ -242,7 +242,10 @@ async function run() {
         })
 
         app.get('/allContes/for/Admin',verifyToken,verifyAdmin, async (req, res) => {
-            const result = await creatorCollection.find().toArray()
+            const page = parseInt(req.query.page)
+            const size = parseInt(req.query.size)
+
+            const result = await creatorCollection.find().skip(page*size).limit(size).toArray()
             res.send(result)
         })
 
@@ -284,6 +287,8 @@ async function run() {
         app.get('/allData/everyone', async (req, res) => {
             const search = req.query?.search
             const sort = req.query?.sort
+            const page=parseInt(req.query.page)
+            const size=parseInt(req.query.size)
             console.log(search)
             let query = {
                 contestType: { $regex: search, $options: 'i' },
@@ -298,7 +303,7 @@ async function run() {
 
 
 
-            const result = await creatorCollection.find(query, option).toArray()
+            const result = await creatorCollection.find(query, option).skip(page*size).limit(size).toArray()
             res.send(result)
         })
 
@@ -546,6 +551,13 @@ async function run() {
 
             res.send(result)
         })
+
+
+        app.get('/allData',async(req,res)=>{
+            const count=await creatorCollection.estimatedDocumentCount();
+            res.send({count})
+        })
+
 
 
 
