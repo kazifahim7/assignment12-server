@@ -102,7 +102,9 @@ async function run() {
         // all users
 
         app.get('/users', async (req, res) => {
-            const result = await userCollection.find().toArray()
+            const page = parseInt(req.query.page)
+            const size = parseInt(req.query.size)
+            const result = await userCollection.find().skip(page*size).limit(size).toArray()
             res.send(result)
         })
 
@@ -199,7 +201,9 @@ async function run() {
         app.get('/host/contest/:email', async (req, res) => {
             const email = req.params.email;
             const query = { hostEmail: email }
-            const result = await creatorCollection.find(query).toArray()
+            const page = parseInt(req.query.page)
+            const size = parseInt(req.query.size)
+            const result = await creatorCollection.find(query).skip(page*size).limit(size).toArray()
             res.send(result)
         })
 
@@ -401,13 +405,15 @@ async function run() {
         app.get('/myParticipateData/:email',async(req,res)=>{
             const email=req.params.email;
             const sort =req.query.sort
+            const page = parseInt(req.query.page)
+            const size = parseInt(req.query.size)
             console.log(sort)
             let option={}
             if (sort) {
                 option = { sort: { ContestDate: sort === 'asc' ? 1 : -1 } }
             }
             const query = { participateUserEmail : email}
-            const result=await paymentsCollection.find(query,option).toArray()
+            const result=await paymentsCollection.find(query,option).skip(page*size).limit(size).toArray()
             res.send(result)
         })
 
@@ -561,7 +567,25 @@ async function run() {
 
 
 
-        
+        app.get('/allusers',async(req,res)=>{
+            const count= await userCollection.estimatedDocumentCount()
+
+            res.send({count})
+
+        })
+
+        app.get('/count/host/contest/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { hostEmail: email }
+            const count = await creatorCollection.countDocuments(query)
+            res.send({ count })
+        })
+        app.get('/count/my/contest/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { participateUserEmail: email }
+            const count = await paymentsCollection.countDocuments(query)
+            res.send({ count })
+        })
 
 
 
